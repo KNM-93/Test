@@ -1,0 +1,233 @@
+---
+title: "Kaminda - Practical 2"
+output: html_notebook
+---
+
+
+```{r}
+knitr::opts_chunk$set(echo = TRUE)
+library(readr)
+library(dplyr)
+```
+
+```{r}
+library(tidyr)
+library(ggplot2)
+library(scales)
+```
+
+```{r}
+install.packages("tidytext")
+install.packages("textstem")
+install.packages("clinspacy")
+install.packages("topicmodels")
+install.packages("reshape2")
+install.packages("stringr")
+```
+
+```{r}
+library(tidytext)
+library(textstem)
+library(clinspacy)
+library(topicmodels)
+library(reshape2)
+library(stringr)
+```
+
+###Data Parsing
+
+```{r}
+raw.data <- clinspacy::dataset_mtsamples()
+dplyr::glimpse(raw.data)
+```
+**1** 
+
+###Data Description
+
+##NoteID - This variable is the unique ID for each note.
+
+##Description - This output provides a summary of the SOAP notes.
+
+##Medical_Specialty - This variable refers to the medical speciality the patient is visiting.
+
+##Sample_Name - This variable refers to the procedures undergone for each patient.
+
+##Transcription - This output provides a full transcript of the physicians SOAP notes.
+
+##Keywords - This output collects keywords from the Medical_Speciality, Sample_Name, and Transcription variables.
+
+
+
+```{r rawdata medical specialities}
+
+raw.data %>% dplyr::select(medical_specialty) %>% dplyr::n_distinct()
+```
+
+###Transcripts per specialty
+
+```{r}
+ggplot2::ggplot(raw.data, ggplot2::aes(y=medical_specialty)) + ggplot2::geom_bar() + labs(x="Document Count", y="Medical Speciality")
+```
+
+```{r}
+filtered.data <- raw.data %>% dplyr::filter(medical_specialty %in% c("Orthopedic", "Radiology", "Surgery")) 
+```
+
+
+###Text Processing
+
+```{r text processing}
+
+analysis.data <- filtered.data %>%
+  unnest_tokens(word, transcription) %>%
+  mutate(word = str_replace_all(word, "[^[:alnum:]]", "")) %>%
+  filter(!str_detect(word, "[0-9]")) %>%
+  anti_join(stop_words) %>%
+  group_by(note_id) %>%
+  summarise(transcription = paste(word, collapse = " ")) %>%
+  left_join(select(filtered.data, -transcription), by = "note_id")
+```
+
+
+```{r}
+tokenized.data.unigram <- analysis.data %>% tidytext::unnest_tokens(word, transcription, to_lower=TRUE)
+```
+
+```{r}
+tokenized.data <- analysis.data %>% tidytext::unnest_tokens(ngram, transcription, token = "ngrams", n=2, to_lower = TRUE)
+```
+
+**2**
+
+###Unique Tokens per Speciality
+
+```{r token unigram}
+tokenized.data.unigram %>% dplyr::group_by(medical_specialty) %>% dplyr::distinct(word) %>% dplyr::summarise(n=dplyr::n())
+```
+##Unique Unigrams
+
+##There are 7682 unique unigrams in the orthopedic speciality.
+
+##There are 5935 unique unigrams in the radiology speciality.
+
+##There are 11977 unique unigrams in the surgery speciality.
+
+
+```{r token bigram}
+
+tokenized.data %>% dplyr::group_by(medical_specialty) %>% dplyr::distinct(ngram) %>% dplyr::summarise(n=dplyr::n())
+```
+
+
+```{r unigram token distribution}
+
+word_counts <- tokenized.data.unigram %>%
+    group_by(word) %>%
+    summarise(count = n()) %>%
+    ungroup() %>%
+    arrange(desc(count))
+
+count_distribution <- word_counts %>%
+  group_by(count) %>%
+  summarise(num_words = n()) %>%
+  ungroup()
+ 
+ ggplot2::ggplot(count_distribution, aes(x = count, y = num_words)) +
+  geom_point() +
+  labs(title = "Scatter Plot of Count Distribution",
+       x = "Count of Unique Words",
+       y = "Number of Words")
+```
+
+```{r bigram token distribution}
+word_counts <- tokenized.data %>%
+    group_by(ngram) %>%
+    summarise(count = n()) %>%
+    ungroup() %>%
+    arrange(desc(count))
+
+count_distribution <- word_counts %>%
+  group_by(count) %>%
+  summarise(num_words = n()) %>%
+  ungroup()
+ 
+ ggplot2::ggplot(count_distribution, aes(x = count, y = num_words)) +
+  geom_point() +
+  labs(title = "Scatter Plot of Count Distribution",
+       x = "Count of Unique Bigrams",
+       y = "Number of Words")
+```
+
+**3**
+###Unique bigrams per category
+
+
+```{r token bigram2}
+
+tokenized.data %>% dplyr::group_by(medical_specialty) %>% dplyr::distinct(ngram) %>% dplyr::summarise(n=dplyr::n())
+```
+
+
+##Unique Bigrams
+
+##There are 55732 unique bigrams in the orthopedic specialty.
+
+##There are 28297 unique bigrams in the radiology speciality.
+
+##There are 130404 unique bigrams in the surgey speciality.
+
+
+**4**
+
+##Unique Sentences
+
+```{r}
+analysis.data <- raw.data %>%
+  unnest_tokens(sentence, transcription) %>%
+  mutate(word = str_replace_all(sentence, "[^[:alnum:]]", "")) %>%
+  filter(!str_detect(sentence, "[0-9]")) %>%
+  anti_join(stop_words) %>%
+  group_by(note_id) %>%
+  summarise(transcription = paste(word, collapse = " ")) %>%
+  left_join(select(raw.data, -transcription), by = "note_id")
+
+```
+
+
+```{r}
+tokenized.data %>% dplyr::group_by(medical_specialty) %>% dplyr::distinct(ngram) %>% dplyr::summarise(n=dplyr::n())
+```
+
+
+```{r}
+count_data <- tokenized.data %>%
+  group_by(medical_specialty) %>%
+  distinct(sentence) %>%
+  summarise(n = n())
+```
+
+```{r}
+sentence_counts <- tokenized.data %>%
+  group_by(sentence) %>%
+  summarise(count = n()) %>%
+  ungroup() %>%
+  arrange(desc(count))
+
+count_distribution <- sentence_counts %>%
+  group_by(count) %>%
+  summarise(num_sentences = n()) %>%
+  ungroup()
+
+ggplot2::ggplot(count_distribution, aes(x = count, y = num_sentences)) +
+  geom_point() +
+  labs(title = "Scatter Plot of Count Distribution",
+       x = "Count of Unique Sentences",
+       y = "Number of Sentences")
+
+```
+
+```{r}
+hello
+```
+
+
