@@ -219,4 +219,25 @@ tokenized.data.sentence %>%
 
 ##There are 1085 unique bigrams in the surgey speciality.
 
+###Words per Category
+
+```{r}
+tokenized.data %>%
+  dplyr::group_by(medical_specialty) %>%
+  dplyr::count(ngram, sort = TRUE) %>%
+  dplyr::top_n(5)
+```
+
+**5** 
+
+##Use of a Lemmatizer
+
+#A general purpose lemmatizer may not work well for medical data. This is because medical data contains highly specialized terms that require accurately trained methods to be trained to accurately token terms. Some specific issues include:
+
+#a. Medical data usually contains specialized terms, drugs names, and jargon. Therefore, a general purpose tool may not have the knowledge of these terms and may not be proficient in accurately identfying the lemmas.
+
+#b. Medical terms typically come from different parts of speech such as nouns, verbs, and adjectives. Since the process of lemmatizing requires mapping to generate correct lemmas, general purpose lemmas (which have not been trained on medical data) may not process the variations in medical speech effectively.
+
+
+
 
