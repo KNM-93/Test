@@ -181,7 +181,7 @@ tokenized.data %>% dplyr::group_by(medical_specialty) %>% dplyr::distinct(ngram)
 
 ##Unique Sentences
 
-```{r}
+```{r sentences}
 analysis.data <- filtered.data %>%
   unnest_tokens(sentence, transcription, token = "sentences") %>%
   mutate(sentence = str_replace_all(sentence, "[^[:alnum:]\\s]", "")) %>%
@@ -239,5 +239,87 @@ tokenized.data %>%
 #b. Medical terms typically come from different parts of speech such as nouns, verbs, and adjectives. Since the process of lemmatizing requires mapping to generate correct lemmas, general purpose lemmas (which have not been trained on medical data) may not process the variations in medical speech effectively.
 
 
+```{r lemmatizer}
+lemmatized.data <- tokenized.data %>% dplyr::mutate(lemma=textstem::lemmatize_words(ngram))
+```
 
 
+```{r}
+lemma.freq <- lemmatized.data %>% 
+  dplyr::count(medical_specialty, lemma) %>%
+  dplyr::group_by(medical_specialty) %>% 
+  dplyr::mutate(proportion = n / sum(n)) %>%
+  tidyr::pivot_wider(names_from = medical_specialty, values_from = proportion) %>%
+  tidyr::pivot_longer(`Surgery`:`Radiology`,
+               names_to = "medical_specialty", values_to = "proportion")
+```
+
+
+```{r}
+ggplot2::ggplot(lemma.freq, ggplot2::aes(x=proportion, 
+                                         y=`Orthopedic`,
+                                         color=abs(`Orthopedic` - proportion))) + 
+  ggplot2::geom_abline(color="gray40", lty=2) +
+  ggplot2::geom_jitter(alpha=0.1, size=2.5, width=0.3, height=0.3) +
+  ggplot2::geom_text(ggplot2::aes(label=lemma), check_overlap=TRUE, vjust=1.5) +
+  ggplot2::scale_x_log10(labels=scales::percent_format()) + 
+  ggplot2::scale_y_log10(labels=scales::percent_format()) + 
+  ggplot2::scale_color_gradient(limits=c(0, 0.001), low="darkslategray4", high="gray75") +
+  ggplot2::facet_wrap(~medical_specialty, ncol = 2) +
+  ggplot2::theme(legend.position="none") +
+  ggplot2:: labs(y="Orthopedic", x = NULL)
+```
+
+**6**
+
+##Analyzing relative proportions 
+
+#This plot visualizes the same relative proportion of lemmas in each speciality. Based on these specialties, I would not expect to see the exact same relative proportions. There are some differences in the relationship between orthopaedics and radiology, and orthopaedics and surgery:
+
+#Orthopaedics and surgery are more likely to have a high degree of common lemmas. Both specialties are based on standard anatomical terms.
+
+#Orthopaedics and radiology are less likely to have a high degree of common lemmas. There is definitely overlap however, radiology may refer more to the technique of medical imaging. Therefore, many of the anatomical terms, diagnoses, and treatments related to orthopaedics may be missed.
+
+**7**
+
+##Direct comparison of surgery and radiology
+
+```{r}
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(textstem)
+```
+
+
+```{r}
+lemmatized.data <- tokenized.data %>% dplyr::mutate(lemma=textstem::lemmatize_words(ngram))
+```
+
+
+```{r}
+lemma.freq <- lemmatized.data %>% 
+  dplyr::count(medical_specialty, lemma) %>%
+  dplyr::group_by(medical_specialty) %>% 
+  dplyr::mutate(proportion = n / sum(n)) %>%
+  tidyr::pivot_wider(names_from = medical_specialty, values_from = proportion) %>%
+  tidyr::pivot_longer(`Orthopedic`:`Radiology`,
+               names_to = "medical_specialty", values_to = "proportion")
+```
+
+```{r}
+ggplot2::ggplot(lemma.freq, ggplot2::aes(x=proportion, 
+                                         y=`Surgery`,
+                                         color=abs(`Surgery` - proportion))) + 
+  ggplot2::geom_abline(color="gray40", lty=2) +
+  ggplot2::geom_jitter(alpha=0.1, size=2.5, width=0.3, height=0.3) +
+  ggplot2::geom_text(ggplot2::aes(label=lemma), check_overlap=TRUE, vjust=1.5) +
+  ggplot2::scale_x_log10(labels=scales::percent_format()) + 
+  ggplot2::scale_y_log10(labels=scales::percent_format()) + 
+  ggplot2::scale_color_gradient(limits=c(0, 0.001), low="darkslategray4", high="gray75") +
+  ggplot2::facet_wrap(~medical_specialty, ncol = 2) +
+  ggplot2::theme(legend.position="none") +
+  ggplot2:: labs(y="Surgery", x = NULL)
+```
+
+###TF-IDF Normailization
