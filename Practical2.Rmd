@@ -359,3 +359,101 @@ analysis.data %>% dplyr::select(medical_specialty, transcription) %>% dplyr::fil
 analysis.data %>% dplyr::select(medical_specialty, transcription) %>% dplyr::filter(stringr::str_detect(transcription, 'atv')) %>% dplyr::slice(1)
 ```
 
+###Topic Modelling
+
+```{r topic modelling}
+lemma.counts <- lemmatized.data %>% dplyr::count(note_id, lemma)
+total.counts <- lemma.counts %>% 
+                      dplyr::group_by(note_id) %>% 
+                      dplyr::summarise(total=sum(n))
+
+all.counts <- dplyr::left_join(lemma.counts, total.counts)
+
+emr.dcm <- all.counts %>% tidytext::cast_dtm(note_id, lemma, n)
+```
+
+```{r}
+emr.lda <- topicmodels::LDA(emr.dcm, k=5, control=list(seed=42))
+emr.topics <- tidytext::tidy(emr.lda, matrix='beta')
+```
+
+```{r}
+top.terms <- emr.topics %>% dplyr::group_by(topic) %>% 
+  dplyr::slice_max(beta, n=10) %>%
+  dplyr::ungroup() %>%
+  dplyr::arrange(topic, -beta)
+
+
+top.terms %>% 
+  dplyr::mutate(term=tidytext::reorder_within(term, beta, topic)) %>% 
+  ggplot2::ggplot(ggplot2::aes(beta, term, fill=factor(topic))) + 
+    ggplot2::geom_col(show.legend=FALSE) + 
+    ggplot2::facet_wrap(~ topic, scales='free')  +
+    tidytext::scale_y_reordered()
+```
+
+```{r}
+specialty_gamma <- tidytext::tidy(emr.lda, matrix='gamma')
+
+# we need to join in the specialty from the note_id
+note_id_specialty_mapping <- lemmatized.data %>%
+  dplyr::mutate(document=as.character(note_id)) %>% 
+  dplyr::select(document, medical_specialty) %>% 
+  dplyr::distinct()
+
+specialty_gamma <- dplyr::left_join(specialty_gamma, note_id_specialty_mapping)
+```
+
+```{r}
+specialty_gamma %>%
+  dplyr::mutate(medical_specialty = reorder(medical_specialty, gamma * topic)) %>%
+  ggplot2::ggplot(ggplot2::aes(factor(topic), gamma)) +
+  ggplot2::geom_boxplot() +
+  ggplot2::facet_wrap(~ medical_specialty) +
+  ggplot2::labs(x = "topic", y = expression(gamma))
+```
+
+**10**
+
+##Six topic LDA
+
+```{r}
+emr.lda <- topicmodels::LDA(emr.dcm, k=6, control=list(seed=42))
+emr.topics <- tidytext::tidy(emr.lda, matrix='beta')
+```
+
+```{r}
+top.terms <- emr.topics %>% dplyr::group_by(topic) %>% 
+  dplyr::slice_max(beta, n=10) %>%
+  dplyr::ungroup() %>%
+  dplyr::arrange(topic, -beta)
+
+
+top.terms %>% 
+  dplyr::mutate(term=tidytext::reorder_within(term, beta, topic)) %>% 
+  ggplot2::ggplot(ggplot2::aes(beta, term, fill=factor(topic))) + 
+    ggplot2::geom_col(show.legend=FALSE) + 
+    ggplot2::facet_wrap(~ topic, scales='free')  +
+    tidytext::scale_y_reordered()
+```
+```{r}
+specialty_gamma <- tidytext::tidy(emr.lda, matrix='gamma')
+
+# we need to join in the specialty from the note_id
+note_id_specialty_mapping <- lemmatized.data %>%
+  dplyr::mutate(document=as.character(note_id)) %>% 
+  dplyr::select(document, medical_specialty) %>% 
+  dplyr::distinct()
+
+specialty_gamma <- dplyr::left_join(specialty_gamma, note_id_specialty_mapping)
+```
+
+```{r}
+specialty_gamma %>%
+  dplyr::mutate(medical_specialty = reorder(medical_specialty, gamma * topic)) %>%
+  ggplot2::ggplot(ggplot2::aes(factor(topic), gamma)) +
+  ggplot2::geom_boxplot() +
+  ggplot2::facet_wrap(~ medical_specialty) +
+  ggplot2::labs(x = "topic", y = expression(gamma))
+```
+
