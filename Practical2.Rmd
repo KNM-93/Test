@@ -182,52 +182,41 @@ tokenized.data %>% dplyr::group_by(medical_specialty) %>% dplyr::distinct(ngram)
 ##Unique Sentences
 
 ```{r}
-analysis.data <- raw.data %>%
-  unnest_tokens(sentence, transcription) %>%
-  mutate(word = str_replace_all(sentence, "[^[:alnum:]]", "")) %>%
+analysis.data <- filtered.data %>%
+  unnest_tokens(sentence, transcription, token = "sentences") %>%
+  mutate(sentence = str_replace_all(sentence, "[^[:alnum:]\\s]", "")) %>%
   filter(!str_detect(sentence, "[0-9]")) %>%
-  anti_join(stop_words) %>%
+  cross_join(stop_words) %>%
   group_by(note_id) %>%
-  summarise(transcription = paste(word, collapse = " ")) %>%
-  left_join(select(raw.data, -transcription), by = "note_id")
-
-```
-
-
-```{r}
-tokenized.data %>% dplyr::group_by(medical_specialty) %>% dplyr::distinct(ngram) %>% dplyr::summarise(n=dplyr::n())
-```
-
-
-```{r}
-count_data <- tokenized.data %>%
-  group_by(medical_specialty) %>%
-  distinct(sentence) %>%
-  summarise(n = n())
+  summarise(transcription = paste(sentence, collapse = " ")) %>%
+  left_join(select(filtered.data, -transcription), by = "note_id")
 ```
 
 ```{r}
-sentence_counts <- tokenized.data %>%
-  group_by(sentence) %>%
-  summarise(count = n()) %>%
-  ungroup() %>%
-  arrange(desc(count))
-
-count_distribution <- sentence_counts %>%
-  group_by(count) %>%
-  summarise(num_sentences = n()) %>%
-  ungroup()
-
-ggplot2::ggplot(count_distribution, aes(x = count, y = num_sentences)) +
-  geom_point() +
-  labs(title = "Scatter Plot of Count Distribution",
-       x = "Count of Unique Sentences",
-       y = "Number of Sentences")
-
+?cross_join
 ```
 
 ```{r}
-hello
+?str_detect
 ```
+
+```{r}
+tokenized.data.sentence <- analysis.data %>% tidytext::unnest_tokens(ngram, transcription, token = "sentences", to_lower = TRUE)
+```
+
+```{r}
+tokenized.data.sentence %>%
+  dplyr::group_by(medical_specialty) %>%
+  dplyr::count(name = "n") %>%
+  dplyr::ungroup()
+```
+
+##Unique Sentences
+
+##There are 350 unique bigrams in the orthopedic specialty.
+
+##There are 262 unique bigrams in the radiology speciality.
+
+##There are 1085 unique bigrams in the surgey speciality.
 
 
