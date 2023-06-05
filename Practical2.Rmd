@@ -457,3 +457,7 @@ specialty_gamma %>%
   ggplot2::labs(x = "topic", y = expression(gamma))
 ```
 
+```{r}
+install.packages("tinytext")
+```
+
